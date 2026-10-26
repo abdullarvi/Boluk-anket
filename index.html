@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bölük Anket</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #f8fafc;
+            color: #0f172a;
+            -webkit-tap-highlight-color: transparent;
+        }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans">
+
+    <!-- ÜST MENÜ (HEADER) -->
+    <header class="sticky top-0 z-30 bg-white border-b border-slate-200 shadow-sm">
+        <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
+            <!-- Başlık -->
+            <div onclick="app.showMainView()" class="flex items-center gap-2.5 cursor-pointer">
+                <div class="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold text-sm">
+                    <i class="fa-solid fa-check-double"></i>
+                </div>
+                <span class="font-bold text-base sm:text-lg tracking-tight text-slate-900">Bölük Anket</span>
+                <span id="headerCountBadge" class="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600">184 Kişi</span>
+            </div>
+
+            <!-- Menü Butonları -->
+            <div class="flex items-center gap-1.5 sm:gap-2">
+                <button onclick="app.showMainView()" id="navSurveysBtn" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold bg-slate-900 text-white transition">
+                    Anketler
+                </button>
+                <button onclick="app.openCreateModal()" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Yeni Anket</span>
+                </button>
+                <button onclick="app.openAdminPanel()" id="navAdminBtn" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-shield-halved text-slate-600"></i>
+                    <span>Kıdemli Paneli</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ANA İÇERİK -->
+    <main class="flex-1 max-w-5xl w-full mx-auto px-4 py-5">
+
+        <!-- ==================== 1. ANKETLER EKRANI (KULLANICI) ==================== -->
+        <div id="mainView" class="space-y-4">
+            
+            <!-- Sekmeler: Aktif / Eski -->
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                <div class="flex gap-2">
+                    <button onclick="app.setSurveyTab('active')" id="tabActiveBtn" class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold bg-slate-900 text-white transition">
+                        Aktif Anketler (<span id="activeCount">0</span>)
+                    </button>
+                    <button onclick="app.setSurveyTab('closed')" id="tabClosedBtn" class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition">
+                        Eski Anketler (<span id="closedCount">0</span>)
+                    </button>
+                </div>
+
+                <!-- Seçili Kişi Göstergesi -->
+                <div id="activeUserChip" class="hidden items-center gap-1.5 text-xs bg-emerald-50 border border-emerald-200 text-emerald-800 px-2.5 py-1 rounded-lg font-medium">
+                    <i class="fa-solid fa-user-check text-emerald-600"></i>
+                    <span id="activeUserChipText"></span>
+                </div>
+            </div>
+
+            <!-- Anket Kartları Listesi -->
+            <div id="surveyCardsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
+
+        <!-- ==================== 2. KIDEMLİ PANELİ (ADMİN) ==================== -->
+        <div id="adminView" class="hidden space-y-4">
+            
+            <!-- Üst Kontrol Çubuğu -->
+            <div class="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-center gap-2 flex-1">
+                    <span class="text-xs font-bold uppercase text-slate-400 shrink-0">Anket:</span>
+                    <select id="adminSurveySelect" onchange="app.selectAdminSurvey(this.value)" class="w-full sm:max-w-md bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold text-slate-900 focus:outline-none focus:border-slate-900"></select>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <button onclick="app.toggleSelectedSurveyStatus()" id="adminToggleStatusBtn" class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition"></button>
+                    <button onclick="app.deleteSelectedSurvey()" class="px-3 py-1.5 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-xs font-semibold text-rose-700 transition">
+                        Sil
+                    </button>
+                    <button onclick="app.openSettingsModal()" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-users-gear"></i>
+                        <span>Personel & Ayarlar</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Özet Sayaçlar (Toplam / İşaretleyen / İşaretlemeyen) -->
+            <div class="grid grid-cols-3 gap-3">
+                <div class="bg-white border border-slate-200 rounded-xl p-3.5 text-center shadow-sm">
+                    <div class="text-xs font-medium text-slate-500">Toplam</div>
+                    <div id="statTotal" class="text-xl sm:text-2xl font-mono font-bold text-slate-900 mt-0.5">184</div>
+                </div>
+                <div onclick="app.setAdminFilter('voted')" class="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 text-center shadow-sm cursor-pointer hover:bg-emerald-100/70 transition">
+                    <div class="text-xs font-semibold text-emerald-700">İşaretleyen (Yeşil)</div>
+                    <div id="statVoted" class="text-xl sm:text-2xl font-mono font-bold text-emerald-700 mt-0.5">0</div>
+                </div>
+                <div onclick="app.setAdminFilter('missing')" class="bg-rose-50 border border-rose-200 rounded-xl p-3.5 text-center shadow-sm cursor-pointer hover:bg-rose-100/70 transition">
+                    <div class="text-xs font-semibold text-rose-700">İşaretlemeyen (Kırmızı)</div>
+                    <div id="statMissing" class="text-xl sm:text-2xl font-mono font-bold text-rose-600 mt-0.5">0</div>
+                </div>
+            </div>
+
+            <!-- Seçenek Dağılımı & Hızlı Aksiyonlar -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <!-- Seçenek Sonuçları -->
+                <div class="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-2.5">
+                    <div class="text-xs font-bold uppercase text-slate-400">Sonuç Dağılımı</div>
+                    <div id="adminOptionBars" class="space-y-2"></div>
+                </div>
+
+                <!-- Hızlı WhatsApp ve Excel Butonları -->
+                <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-center gap-2">
+                    <button onclick="app.copySurveyLink()" class="w-full py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition flex items-center justify-center gap-2">
+                        <i class="fa-brands fa-whatsapp text-sm"></i>
+                        <span>Anket Linkini Kopyala</span>
+                    </button>
+                    <button onclick="app.copyMissingList()" class="w-full py-2 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs transition flex items-center justify-center gap-2">
+                        <i class="fa-regular fa-copy"></i>
+                        <span>Eksikleri Kopyala (WhatsApp)</span>
+                    </button>
+                    <button onclick="app.exportCSV()" class="w-full py-2 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-file-excel text-emerald-700"></i>
+                        <span>Excel İndir (CSV)</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 184 Kişilik Renkli Kontrol Listesi -->
+            <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+                <!-- Filtreler ve Arama -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                    <div class="flex flex-wrap gap-1.5">
+                        <button onclick="app.setAdminFilter('all')" id="filterAllBtn" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-white">
+                            Tümü
+                        </button>
+                        <button onclick="app.setAdminFilter('missing')" id="filterMissingBtn" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                            İşaretlemeyenler (Kırmızı)
+                        </button>
+                        <button onclick="app.setAdminFilter('voted')" id="filterVotedBtn" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            İşaretleyenler (Yeşil)
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <select id="adminOptionFilter" onchange="app.setAdminOptionFilter(this.value)" class="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:outline-none"></select>
+                        <input type="text" id="adminSearchInput" oninput="app.setAdminSearch(this.value)" placeholder="Apolet veya İsim ara..." class="w-full sm:w-44 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-slate-400">
+                    </div>
+                </div>
+
+                <div class="text-[11px] text-slate-400">
+                    * Kişinin üzerine tıklayarak Kıdemli olarak manuel işaretleme yapabilirsiniz.
+                </div>
+
+                <!-- Kişi Kartları Grid -->
+                <div id="adminPersonnelGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-[540px] overflow-y-auto pr-1"></div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ==================== MODALLAR ==================== -->
+
+    <!-- 1. OY VERME / ANKET DETAY MODALI -->
+    <div id="voteModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-5 shadow-xl space-y-4 my-auto">
+            <!-- Başlık -->
+            <div class="flex items-start justify-between gap-2 border-b border-slate-100 pb-3">
+                <div>
+                    <span id="voteModalBadge" class="text-[11px] font-bold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">Aktif Anket</span>
+                    <h3 id="voteModalTitle" class="text-base font-bold text-slate-900 mt-1"></h3>
+                </div>
+                <button onclick="app.closeVoteModal()" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Katılım Özeti -->
+            <div class="grid grid-cols-3 gap-2 bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 text-center text-xs">
+                <div>
+                    <span class="text-slate-400 block">Katılan</span>
+                    <strong id="voteModalVoted" class="font-mono text-sm text-emerald-600">0</strong>
+                </div>
+                <div class="border-x border-slate-200">
+                    <span class="text-slate-400 block">Kalan</span>
+                    <strong id="voteModalMissing" class="font-mono text-sm text-rose-600">0</strong>
+                </div>
+                <div>
+                    <span class="text-slate-400 block">Toplam</span>
+                    <strong id="voteModalTotal" class="font-mono text-sm text-slate-800">184</strong>
+                </div>
+            </div>
+
+            <!-- Oy Verme Formu (Sadece Aktif Anketlerde) -->
+            <div id="voteActiveSection" class="space-y-3">
+                <!-- Adım 1: Apolet / İsim Seçimi -->
+                <div class=" relative">
+                    <label class="text-xs font-bold text-slate-700 block mb-1">1. Apolet No veya İsim</label>
+                    <input type="text" id="voterSearchInput" oninput="app.searchVoter(this.value)" onfocus="app.searchVoter(this.value)" placeholder="Örn: 1005 veya Ahmet..." autocomplete="off" class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:border-slate-900">
+                    
+                    <!-- Otomatik Tamamlama Listesi -->
+                    <div id="voterDropdown" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-44 overflow-y-auto z-20 divide-y divide-slate-100"></div>
+                </div>
+
+                <!-- Seçilen Personel Kutusu -->
+                <div id="selectedVoterBox" class="hidden items-center justify-between bg-slate-900 text-white px-3.5 py-2.5 rounded-xl text-xs">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-id-badge text-emerald-400"></i>
+                        <span id="selectedVoterText" class="font-bold"></span>
+                    </div>
+                    <button onclick="app.clearSelectedVoter()" class="text-slate-300 hover:text-white underline text-[11px]">Değiştir</button>
+                </div>
+
+                <!-- Adım 2: Seçenekler -->
+                <div>
+                    <label class="text-xs font-bold text-slate-700 block mb-1.5">2. Seçiminiz</label>
+                    <div id="voteModalOptionsList" class="space-y-2"></div>
+                </div>
+
+                <!-- Kaydet Butonu -->
+                <button onclick="app.submitVote()" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-sm transition">
+                    Kaydet
+                </button>
+            </div>
+
+            <!-- Mevcut Sonuç Çubukları -->
+            <div class="pt-3 border-t border-slate-100 space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-500">Anlık Sonuçlar</span>
+                    <button onclick="app.copySurveyLink(app.state.activeVoteSurveyId)" class="text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1">
+                        <i class="fa-brands fa-whatsapp"></i> Link Kopyala
+                    </button>
+                </div>
+                <div id="voteModalResultsBars" class="space-y-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. YENİ ANKET OLUŞTURMA MODALI -->
+    <div id="createModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-5 shadow-xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="text-base font-bold text-slate-900">Yeni Anket Oluştur</h3>
+                <button onclick="app.closeCreateModal()" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs font-bold text-slate-700 block mb-1">Anket Başlığı</label>
+                    <input type="text" id="newSurveyTitle" placeholder="Örn: Hafta Sonu Çarşı Servisi" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-slate-900">
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="text-xs font-bold text-slate-700">Seçenekler (Her satıra 1 seçenek)</label>
+                    </div>
+                    <!-- Hazır Şablon Butonları -->
+                    <div class="flex flex-wrap gap-1.5 mb-2">
+                        <button type="button" onclick="app.fillTemplate(['Katılıyorum', 'Katılmıyorum'])" class="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium">Katılıyorum / Katılmıyorum</button>
+                        <button type="button" onclick="app.fillTemplate(['Çarşıya Çıkacağım', 'Çıkmayacağım', 'Nöbetçiyim'])" class="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium">Çarşı Yoklaması</button>
+                        <button type="button" onclick="app.fillTemplate(['Evet', 'Hayır'])" class="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium">Evet / Hayır</button>
+                        <button type="button" onclick="app.fillTemplate(['S', 'M', 'L', 'XL', 'XXL'])" class="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium">Beden (S-XXL)</button>
+                    </div>
+                    <textarea id="newSurveyOptions" rows="4" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-sm text-slate-900 focus:outline-none focus:border-slate-900">Katılıyorum&#10;Katılmıyorum</textarea>
+                </div>
+            </div>
+
+            <div class="flex gap-2 pt-2">
+                <button onclick="app.closeCreateModal()" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">İptal</button>
+                <button onclick="app.createSurvey()" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">Oluştur</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. KIDEMLİ ŞİFRE (PIN) MODALI -->
+    <div id="pinModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white border border-slate-200 rounded-2xl max-w-xs w-full p-5 shadow-xl space-y-4 text-center">
+            <div class="w-10 h-10 rounded-full bg-slate-100 text-slate-800 flex items-center justify-center mx-auto">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <div>
+                <h3 class="text-base font-bold text-slate-900">Kıdemli Girişi</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Varsayılan Şifre: <strong class="font-mono">1234</strong></p>
+            </div>
+            <input type="password" id="pinInput" onkeydown="if(event.key==='Enter') app.verifyPin()" placeholder="Şifre" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-center font-mono text-lg tracking-widest focus:outline-none focus:border-slate-900">
+            <div class="flex gap-2">
+                <button onclick="app.closePinModal()" class="flex-1 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">İptal</button>
+                <button onclick="app.verifyPin()" class="flex-1 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold">Giriş</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. KIDEMLİ MANUEL İŞARETLEME MODALI -->
+    <div id="manualModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white border border-slate-200 rounded-2xl max-w-xs w-full p-5 shadow-xl space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                <h3 id="manualModalPerson" class="text-sm font-bold text-slate-900 truncate"></h3>
+                <button onclick="app.closeManualModal()" class="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+            </div>
+            <div id="manualModalOptions" class="space-y-1.5"></div>
+        </div>
+    </div>
+
+    <!-- 5. PERSONEL LİSTESİ (184) & AYARLAR MODALI -->
+    <div id="settingsModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-5 shadow-xl space-y-4 my-auto">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="text-base font-bold text-slate-900">Personel Listesi & Ayarlar</h3>
+                <button onclick="app.closeSettingsModal()" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- 184 Kişilik Liste -->
+            <div class="space-y-1.5">
+                <div class="flex items-center justify-between">
+                    <label class="text-xs font-bold text-slate-700">Personel Listesi (Her satıra: <span class="font-mono">ApoletNo İsim</span>)</label>
+                    <button onclick="app.resetDefaultPersonnel()" class="text-[11px] text-slate-500 underline hover:text-slate-800">Örnek 184 Kişi Doldur</button>
+                </div>
+                <textarea id="settingsPersonnelInput" rows="8" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs font-mono text-slate-800 focus:outline-none focus:border-slate-900"></textarea>
+            </div>
+
+            <!-- Kıdemli Şifresi ve Canlı Veritabanı -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div>
+                    <label class="text-xs font-bold text-slate-700 block mb-1">Kıdemli Şifresi (PIN)</label>
+                    <input type="text" id="settingsPinInput" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-700 block mb-1">Firebase DB Linki (İsteğe Bağlı)</label>
+                    <input type="text" id="settingsFirebaseInput" placeholder="https://...-rtdb.firebaseio.com" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900">
+                </div>
+            </div>
+
+            <div class="flex gap-2 pt-2 border-t border-slate-100">
+                <button onclick="app.closeSettingsModal()" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Kapat</button>
+                <button onclick="app.saveSettings()" class="flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold">Kaydet ve Güncelle</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BİLDİRİM (TOAST) -->
+    <div id="toastBox" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center gap-2 w-full max-w-xs px-4"></div>
+
+    <script>
+        // --- 184 KİŞİLİK VARSAYILAN LİSTE ÜRETİCİ ---
+        function getDefault184Personnel() {
+            const names = ["Ahmet", "Mehmet", "Mustafa", "Ali", "Hüseyin", "Hasan", "İbrahim", "İsmail", "Osman", "Yusuf", "Murat", "Ömer", "Ramazan", "Halil", "Süleyman", "Abdullah", "Mahmut", "Salih", "Kemal", "Recep", "Sinan", "Metin", "Adem", "Fatih", "Hakan", "Serkan", "Gökhan", "Burak", "Emre", "Tolga", "Uğur", "Volkan", "Onur", "Kadir", "İlker", "Cem", "Deniz", "Barış", "Erkan", "Orhan", "Yasin", "Enes", "Furkan", "Oğuz", "Kaan", "Mert"];
+            const surnames = ["Yılmaz", "Kaya", "Demir", "Çelik", "Şahin", "Yıldız", "Yıldırım", "Öztürk", "Aydın", "Özdemir", "Arslan", "Doğan", "Kılıç", "Aslan", "Çetin", "Kara", "Koç", "Kurt", "Özkan", "Şimşek", "Polat", "Özcan", "Korkmaz", "Çakır", "Erdoğan", "Yavuz", "Can", "Acar", "Şen", "Aksoy", "Güler", "Yalçın", "Güneş", "Bozkurt", "Bulut", "Keskin", "Ünal", "Turan", "Gül", "Avcı"];
+            const arr = [];
+            for (let i = 1; i <= 184; i++) {
+                arr.push({
+                    apolet: String(1000 + i),
+                    name: `${names[(i * 7) % names.length]} ${surnames[(i * 13) % surnames.length]}`
+                });
+            }
+            return arr;
+        }
+
+        const STORAGE_KEY = 'boluk_anket_v2_data';
+
+        const app = {
+            state: {
+                personnel: [],
+                surveys: [],
+                adminPin: '1234',
+                firebaseUrl: '',
+                isAdminAuthenticated: false,
+                pendingAdminAction: null, // 'panel' | 'create'
+                currentView: 'main',      // 'main' | 'admin'
+                surveyTab: 'active',      // 'active' | 'closed'
+                activeVoteSurveyId: null,
+                selectedVoterApolet: localStorage.getItem('boluk_last_apolet') || null,
+                selectedVoteOption: null,
+                adminSurveyId: null,
+                adminFilter: 'all',       // 'all' | 'missing' | 'voted'
+                adminOptionFilter: 'ALL',
+                adminSearch: '',
+                manualTargetApolet: null
+            },
+
+            async init() {
+                this.loadData();
+                
+                // Eğer Firebase URL tanımlıysa oradan senkronize et
+                if (this.state.firebaseUrl) {
+                    await this.pullFromFirebase();
+                    setInterval(() => this.pullFromFirebase(), 6000);
+                }
+
+                this.renderAll();
+                this.checkUrlHash();
+                window.addEventListener('hashchange', () => this.checkUrlHash());
+            },
+
+            loadData() {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    try {
+                        const parsed = JSON.parse(raw);
+                        this.state.personnel = parsed.personnel || getDefault184Personnel();
+                        this.state.surveys = parsed.surveys || [];
+                        this.state.adminPin = parsed.adminPin || '1234';
+                        this.state.firebaseUrl = parsed.firebaseUrl || '';
+                    } catch (e) {
+                        this.seedDefaults();
+                    }
+                } else {
+                    this.seedDefaults();
+                }
+
+                if (!this.state.adminSurveyId && this.state.surveys.length > 0) {
+                    this.state.adminSurveyId = this.state.surveys[0].id;
+                }
+            },
+
+            seedDefaults() {
+                const personnel = getDefault184Personnel();
+                const sampleVotes1 = {};
+                for (let i = 0; i < 138; i++) {
+                    sampleVotes1[personnel[i].apolet] = i % 5 === 0 ? "Çıkmayacağım" : "Çarşıya Çıkacağım";
+                }
+                const sampleVotes2 = {};
+                for (let i = 0; i < 180; i++) {
+                    sampleVotes2[personnel[i].apolet] = ["M", "L", "L", "XL"][i % 4];
+                }
+
+                this.state.personnel = personnel;
+                this.state.surveys = [
+                    {
+                        id: 's1',
+                        title: 'Hafta Sonu Çarşı İzni Yoklaması',
+                        options: ['Çarşıya Çıkacağım', 'Çıkmayacağım', 'Nöbetçiyim'],
+                        status: 'active',
+                        createdAt: Date.now() - 3600000,
+                        votes: sampleVotes1
+                    },
+                    {
+                        id: 's2',
+                        title: 'Bölük Polar Beden Seçimi',
+                        options: ['S', 'M', 'L', 'XL', 'XXL'],
+                        status: 'closed',
+                        createdAt: Date.now() - 86400000 * 2,
+                        votes: sampleVotes2
+                    }
+                ];
+                this.state.adminSurveyId = 's1';
+                this.saveData();
+            },
+
+            saveData() {
+                const payload = {
+                    personnel: this.state.personnel,
+                    surveys: this.state.surveys,
+                    adminPin: this.state.adminPin,
+                    firebaseUrl: this.state.firebaseUrl
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+                if (this.state.firebaseUrl) {
+                    this.pushToFirebase(payload);
+                }
+            },
+
+            async pullFromFirebase() {
+                if (!this.state.firebaseUrl) return;
+                try {
+                    const cleanUrl = this.state.firebaseUrl.replace(/\/$/, '') + '/boluk_data.json';
+                    const res = await fetch(cleanUrl);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data && data.personnel) {
+                            this.state.personnel = data.personnel;
+                            this.state.surveys = data.surveys || [];
+                            this.state.adminPin = data.adminPin || this.state.adminPin;
+                            this.renderAll();
+                        }
+                    }
+                } catch (e) {}
+            },
+
+            async pushToFirebase(payload) {
+                if (!this.state.firebaseUrl) return;
+                try {
+                    const cleanUrl = this.state.firebaseUrl.replace(/\/$/, '') + '/boluk_data.json';
+                    await fetch(cleanUrl, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                } catch (e) {}
+            },
+
+            // URL'den direkt anket açma (#survey=s1)
+            checkUrlHash() {
+                const hash = window.location.hash;
+                if (hash.startsWith('#survey=')) {
+                    const id = hash.replace('#survey=', '');
+                    const found = this.state.surveys.find(s => s.id === id);
+                    if (found) {
+                        this.openVoteModal(id);
+                    }
+                }
+            },
+
+            // --- EKRAN GEÇİŞLERİ ---
+            showMainView() {
+                this.state.currentView = 'main';
+                this.renderAll();
+            },
+
+            openAdminPanel() {
+                if (this.state.isAdminAuthenticated) {
+                    this.state.currentView = 'admin';
+                    this.renderAll();
+                } else {
+                    this.state.pendingAdminAction = 'panel';
+                    this.openPinModal();
+                }
+            },
+
+            openCreateModal() {
+                if (this.state.isAdminAuthenticated) {
+                    document.getElementById('newSurveyTitle').value = '';
+                    document.getElementById('createModal').classList.remove('hidden');
+                } else {
+                    this.state.pendingAdminAction = 'create';
+                    this.openPinModal();
+                }
+            },
+
+            closeCreateModal() {
+                document.getElementById('createModal').classList.add('hidden');
+            },
+
+            // --- PIN DOĞRULAMA ---
+            openPinModal() {
+                const input = document.getElementById('pinInput');
+                input.value = '';
+                document.getElementById('pinModal').classList.remove('hidden');
+                setTimeout(() => input.focus(), 50);
+            },
+
+            closePinModal() {
+                document.getElementById('pinModal').classList.add('hidden');
+            },
+
+            verifyPin() {
+                const val = document.getElementById('pinInput').value.trim();
+                if (val === this.state.adminPin) {
+                    this.state.isAdminAuthenticated = true;
+                    this.closePinModal();
+                    if (this.state.pendingAdminAction === 'create') {
+                        this.openCreateModal();
+                    } else {
+                        this.state.currentView = 'admin';
+                        this.renderAll();
+                    }
+                } else {
+                    this.toast('Hatalı şifre!', 'error');
+                }
+            },
+
+            // --- GENEL RENDER ---
+            renderAll() {
+                const total = this.state.personnel.length;
+                document.getElementById('headerCountBadge').textContent = `${total} Kişi`;
+
+                // Üst menü aktiflik durumu
+                const navSurveys = document.getElementById('navSurveysBtn');
+                const navAdmin = document.getElementById('navAdminBtn');
+
+                if (this.state.currentView === 'main') {
+                    document.getElementById('mainView').classList.remove('hidden');
+                    document.getElementById('adminView').classList.add('hidden');
+                    navSurveys.className = "px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold bg-slate-900 text-white transition";
+                    navAdmin.className = "px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition flex items-center gap-1.5";
+                    this.renderMainView();
+                } else {
+                    document.getElementById('mainView').classList.add('hidden');
+                    document.getElementById('adminView').classList.remove('hidden');
+                    navAdmin.className = "px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold bg-slate-900 text-white transition flex items-center gap-1.5";
+                    navSurveys.className = "px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition";
+                    this.renderAdminView();
+                }
+            },
+
+            // --- 1. KULLANICI ANKET EKRANI RENDER ---
+            setSurveyTab(tab) {
+                this.state.surveyTab = tab;
+                this.renderMainView();
+            },
+
+            renderMainView() {
+                const activeList = this.state.surveys.filter(s => s.status === 'active');
+                const closedList = this.state.surveys.filter(s => s.status !== 'active');
+
+                document.getElementById('activeCount').textContent = activeList.length;
+                document.getElementById('closedCount').textContent = closedList.length;
+
+                const tabActiveBtn = document.getElementById('tabActiveBtn');
+                const tabClosedBtn = document.getElementById('tabClosedBtn');
+
+                if (this.state.surveyTab === 'active') {
+                    tabActiveBtn.className = "px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold bg-slate-900 text-white transition";
+                    tabClosedBtn.className = "px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition";
+                } else {
+                    tabClosedBtn.className = "px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold bg-slate-900 text-white transition";
+                    tabActiveBtn.className = "px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition";
+                }
+
+                // Seçili kişi rozeti
+                const chip = document.getElementById('activeUserChip');
+                const person = this.state.personnel.find(p => p.apolet === this.state.selectedVoterApolet);
+                if (person) {
+                    chip.classList.remove('hidden');
+                    chip.classList.add('flex');
+                    document.getElementById('activeUserChipText').textContent = `${person.apolet} ${person.name}`;
+                } else {
+                    chip.classList.add('hidden');
+                }
+
+                const list = this.state.surveyTab === 'active' ? activeList : closedList;
+                const container = document.getElementById('surveyCardsContainer');
+
+                if (list.length === 0) {
+                    container.innerHTML = `
+                        <div class="col-span-full bg-white border border-slate-200 rounded-xl p-8 text-center text-slate-400 text-sm">
+                            Bu bölümde anket bulunmuyor.
+                        </div>
+                    `;
+                    return;
+                }
+
+                const total = this.state.personnel.length;
+                const validSet = new Set(this.state.personnel.map(p => p.apolet));
+
+                container.innerHTML = list.map(s => {
+                    const votes = s.votes || {};
+                    const votedCount = Object.keys(votes).filter(k => validSet.has(k)).length;
+                    const missingCount = Math.max(0, total - votedCount);
+                    const pct = total > 0 ? Math.round((votedCount / total) * 100) : 0;
+                    const myVote = this.state.selectedVoterApolet ? votes[this.state.selectedVoterApolet] : null;
+                    const isClosed = s.status !== 'active';
+
+                    return `
+                        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between gap-4">
+                            <div class="space-y-3">
+                                <div class="flex items-start justify-between gap-2">
+                                    <h3 class="font-bold text-base text-slate-900 leading-snug">${s.title}</h3>
+                                    ${myVote ? `<span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">✓ ${myVote}</span>` : ''}
+                                </div>
+
+                                <!-- Katılan / Kalan / Toplam Çubuğu -->
+                                <div class="flex items-center justify-between text-xs bg-slate-50 border border-slate-200/70 rounded-lg px-3 py-2">
+                                    <span>Katılan: <strong class="font-mono text-emerald-600">${votedCount}</strong></span>
+                                    <span class="text-slate-300">|</span>
+                                    <span>Kalan: <strong class="font-mono text-rose-600">${missingCount}</strong></span>
+                                    <span class="text-slate-300">|</span>
+                                    <span>Toplam: <strong class="font-mono text-slate-800">${total}</strong></span>
+                                </div>
+
+                                <!-- İlerleme Çubuğu -->
+                                <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                    <div class="h-full bg-emerald-500 rounded-full" style="width: ${pct}%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Alt Butonlar -->
+                            <div class="flex items-center gap-2 pt-1">
+                                <button onclick="app.copySurveyLink('${s.id}')" class="px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition flex items-center gap-1.5">
+                                    <i class="fa-brands fa-whatsapp text-emerald-600 text-sm"></i>
+                                    <span>Link Kopyala</span>
+                                </button>
+                                <button onclick="app.openVoteModal('${s.id}')" class="flex-1 py-2 px-3 rounded-lg ${isClosed ? 'bg-slate-100 text-slate-700' : 'bg-slate-900 hover:bg-slate-800 text-white'} text-xs font-bold transition">
+                                    ${isClosed ? 'Sonuçları Gör' : (myVote ? 'Oyu Değiştir / Gör' : 'Oy Ver / Aç')}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            },
+
+            // --- 2. OY VERME MODALI ---
+            openVoteModal(surveyId) {
+                const s = this.state.surveys.find(x => x.id === surveyId);
+                if (!s) return;
+
+                this.state.activeVoteSurveyId = surveyId;
+                const person = this.state.personnel.find(p => p.apolet === this.state.selectedVoterApolet);
+                this.state.selectedVoteOption = person && s.votes?.[person.apolet] ? s.votes[person.apolet] : null;
+
+                document.getElementById('voteModal').classList.remove('hidden');
+                this.renderVoteModalContent();
+            },
+
+            closeVoteModal() {
+                document.getElementById('voteModal').classList.add('hidden');
+                if (window.location.hash.startsWith('#survey=')) {
+                    history.replaceState(null, null, ' ');
+                }
+            },
+
+            renderVoteModalContent() {
+                const s = this.state.surveys.find(x => x.id === this.state.activeVoteSurveyId);
+                if (!s) return;
+
+                const total = this.state.personnel.length;
+                const validSet = new Set(this.state.personnel.map(p => p.apolet));
+                const votes = s.votes || {};
+                const votedCount = Object.keys(votes).filter(k => validSet.has(k)).length;
+                const missingCount = Math.max(0, total - votedCount);
+                const isClosed = s.status !== 'active';
+
+                const badge = document.getElementById('voteModalBadge');
+                badge.textContent = isClosed ? 'Eski Anket (Kapandı)' : 'Aktif Anket';
+                badge.className = `text-[11px] font-bold uppercase px-2 py-0.5 rounded ${isClosed ? 'bg-slate-100 text-slate-600' : 'bg-emerald-100 text-emerald-800'}`;
+
+                document.getElementById('voteModalTitle').textContent = s.title;
+                document.getElementById('voteModalVoted').textContent = votedCount;
+                document.getElementById('voteModalMissing').textContent = missingCount;
+                document.getElementById('voteModalTotal').textContent = total;
+
+                const activeSection = document.getElementById('voteActiveSection');
+                if (isClosed) {
+                    activeSection.classList.add('hidden');
+                } else {
+                    activeSection.classList.remove('hidden');
+                    this.renderVoterSelectionUI();
+
+                    // Seçenek Butonları
+                    document.getElementById('voteModalOptionsList').innerHTML = s.options.map(opt => {
+                        const selected = this.state.selectedVoteOption === opt;
+                        return `
+                            <button type="button" onclick="app.selectOptionInModal('${opt.replace(/'/g, "\\'")}')" class="w-full p-3 rounded-xl border text-left text-sm font-semibold transition flex items-center justify-between ${
+                                selected ? 'bg-emerald-50 border-emerald-600 text-emerald-900' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-800'
+                            }">
+                                <span>${opt}</span>
+                                <div class="w-5 h-5 rounded-full border flex items-center justify-center ${selected ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300'}">
+                                    ${selected ? '<i class="fa-solid fa-check text-[10px]"></i>' : ''}
+                                </div>
+                            </button>
+                        `;
+                    }).join('');
+                }
+
+                // Sonuç Çubukları
+                const counts = {};
+                s.options.forEach(o => counts[o] = 0);
+                Object.entries(votes).forEach(([ap, opt]) => {
+                    if (validSet.has(ap) && counts[opt] !== undefined) counts[opt]++;
+                });
+
+                document.getElementById('voteModalResultsBars').innerHTML = s.options.map(opt => {
+                    const c = counts[opt] || 0;
+                    const pct = votedCount > 0 ? Math.round((c / votedCount) * 100) : 0;
+                    return `
+                        <div class="space-y-1 text-xs">
+                            <div class="flex justify-between font-medium text-slate-700">
+                                <span>${opt}</span>
+                                <span class="font-mono font-bold">${c} Kişi (%${pct})</span>
+                            </div>
+                            <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div class="h-full bg-slate-800 rounded-full" style="width: ${pct}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            },
+
+            renderVoterSelectionUI() {
+                const person = this.state.personnel.find(p => p.apolet === this.state.selectedVoterApolet);
+                const searchInput = document.getElementById('voterSearchInput');
+                const selectedBox = document.getElementById('selectedVoterBox');
+                const dropdown = document.getElementById('voterDropdown');
+
+                if (person) {
+                    searchInput.classList.add('hidden');
+                    dropdown.classList.add('hidden');
+                    selectedBox.classList.remove('hidden');
+                    selectedBox.classList.add('flex');
+                    document.getElementById('selectedVoterText').textContent = `${person.apolet} - ${person.name}`;
+                } else {
+                    searchInput.classList.remove('hidden');
+                    selectedBox.classList.add('hidden');
+                }
+            },
+
+            searchVoter(query) {
+                const dropdown = document.getElementById('voterDropdown');
+                const q = query.trim().toLowerCase();
+                const matches = this.state.personnel.filter(p => 
+                    p.apolet.toLowerCase().includes(q) || p.name.toLowerCase().includes(q)
+                ).slice(0, 30);
+
+                if (matches.length === 0) {
+                    dropdown.innerHTML = `<div class="p-2.5 text-xs text-slate-400 text-center">Bulunamadı</div>`;
+                } else {
+                    dropdown.innerHTML = matches.map(p => `
+                        <button type="button" onclick="app.pickVoter('${p.apolet}')" class="w-full px-3.5 py-2 text-left text-xs hover:bg-slate-50 flex items-center justify-between">
+                            <span><strong class="font-mono text-slate-900">${p.apolet}</strong> - ${p.name}</span>
+                            <i class="fa-solid fa-check text-slate-300"></i>
+                        </button>
+                    `).join('');
+                }
+                dropdown.classList.remove('hidden');
+            },
+
+            pickVoter(apolet) {
+                this.state.selectedVoterApolet = apolet;
+                localStorage.setItem('boluk_last_apolet', apolet);
+                document.getElementById('voterDropdown').classList.add('hidden');
+
+                const s = this.state.surveys.find(x => x.id === this.state.activeVoteSurveyId);
+                if (s && s.votes?.[apolet]) {
+                    this.state.selectedVoteOption = s.votes[apolet];
+                }
+                this.renderVoteModalContent();
+                this.renderMainView();
+            },
+
+            clearSelectedVoter() {
+                this.state.selectedVoterApolet = null;
+                document.getElementById('voterSearchInput').value = '';
+                this.renderVoterSelectionUI();
+                setTimeout(() => document.getElementById('voterSearchInput').focus(), 50);
+            },
+
+            selectOptionInModal(opt) {
+                this.state.selectedVoteOption = opt;
+                this.renderVoteModalContent();
+            },
+
+            submitVote() {
+                if (!this.state.selectedVoterApolet) {
+                    this.toast('Lütfen önce Apolet No veya İsminizi seçin!', 'error');
+                    document.getElementById('voterSearchInput').focus();
+                    return;
+                }
+                if (!this.state.selectedVoteOption) {
+                    this.toast('Lütfen bir seçenek işaretleyin!', 'error');
+                    return;
+                }
+
+                const s = this.state.surveys.find(x => x.id === this.state.activeVoteSurveyId);
+                if (!s) return;
+
+                if (!s.votes) s.votes = {};
+                s.votes[this.state.selectedVoterApolet] = this.state.selectedVoteOption;
+
+                this.saveData();
+                this.renderVoteModalContent();
+                this.renderMainView();
+                this.toast('Oyunuz kaydedildi!', 'success');
+            },
+
+            // --- 3. YENİ ANKET OLUŞTURMA ---
+            fillTemplate(opts) {
+                document.getElementById('newSurveyOptions').value = opts.join('\n');
+            },
+
+            createSurvey() {
+                const title = document.getElementById('newSurveyTitle').value.trim();
+                const rawOpts = document.getElementById('newSurveyOptions').value;
+                const options = rawOpts.split(/\r?\n|,/).map(x => x.trim()).filter(Boolean);
+
+                if (!title) {
+                    this.toast('Anket başlığı yazın!', 'error');
+                    return;
+                }
+                if (options.length < 2) {
+                    this.toast('En az 2 seçenek girin!', 'error');
+                    return;
+                }
+
+                const newSurvey = {
+                    id: 's' + Date.now(),
+                    title,
+                    options,
+                    status: 'active',
+                    createdAt: Date.now(),
+                    votes: {}
+                };
+
+                this.state.surveys.unshift(newSurvey);
+                this.state.adminSurveyId = newSurvey.id;
+                this.saveData();
+                this.closeCreateModal();
+                this.renderAll();
+                this.toast('Yeni anket oluşturuldu!', 'success');
+            },
+
+            // --- 4. KIDEMLİ PANELİ (ADMİN) ---
+            selectAdminSurvey(id) {
+                this.state.adminSurveyId = id;
+                this.state.adminOptionFilter = 'ALL';
+                this.renderAdminView();
+            },
+
+            setAdminFilter(filter) {
+                this.state.adminFilter = filter;
+                this.renderAdminView();
+            },
+
+            setAdminOptionFilter(opt) {
+                this.state.adminOptionFilter = opt;
+                this.renderAdminView();
+            },
+
+            setAdminSearch(q) {
+                this.state.adminSearch = q;
+                this.renderAdminGrid();
+            },
+
+            renderAdminView() {
+                const select = document.getElementById('adminSurveySelect');
+                if (this.state.surveys.length === 0) {
+                    select.innerHTML = `<option value="">Anket Yok</option>`;
+                    return;
+                }
+
+                if (!this.state.surveys.find(s => s.id === this.state.adminSurveyId)) {
+                    this.state.adminSurveyId = this.state.surveys[0].id;
+                }
+
+                select.innerHTML = this.state.surveys.map(s => {
+                    const tag = s.status === 'active' ? '[Aktif]' : '[Eski]';
+                    return `<option value="${s.id}" ${s.id === this.state.adminSurveyId ? 'selected' : ''}>${tag} ${s.title}</option>`;
+                }).join('');
+
+                const s = this.state.surveys.find(x => x.id === this.state.adminSurveyId);
+                if (!s) return;
+
+                // Durum Butonu
+                const statusBtn = document.getElementById('adminToggleStatusBtn');
+                statusBtn.textContent = s.status === 'active' ? 'Anketi Kapat' : 'Tekrar Aktif Et';
+
+                // Sayaçlar
+                const total = this.state.personnel.length;
+                const validSet = new Set(this.state.personnel.map(p => p.apolet));
+                const votes = s.votes || {};
+                const votedCount = Object.keys(votes).filter(k => validSet.has(k)).length;
+                const missingCount = Math.max(0, total - votedCount);
+
+                document.getElementById('statTotal').textContent = total;
+                document.getElementById('statVoted').textContent = votedCount;
+                document.getElementById('statMissing').textContent = missingCount;
+
+                // Seçenek Çubukları
+                const counts = {};
+                s.options.forEach(o => counts[o] = 0);
+                Object.entries(votes).forEach(([ap, opt]) => {
+                    if (validSet.has(ap) && counts[opt] !== undefined) counts[opt]++;
+                });
+
+                document.getElementById('adminOptionBars').innerHTML = s.options.map(opt => {
+                    const c = counts[opt] || 0;
+                    const pct = votedCount > 0 ? Math.round((c / votedCount) * 100) : 0;
+                    return `
+                        <div class="space-y-1 text-xs">
+                            <div class="flex justify-between font-semibold text-slate-800">
+                                <span>${opt}</span>
+                                <span class="font-mono">${c} Kişi (%${pct})</span>
+                            </div>
+                            <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div class="h-full bg-emerald-600 rounded-full" style="width: ${pct}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                // Filtre Buton Görünümleri
+                document.getElementById('filterAllBtn').className = `px-3 py-1.5 rounded-lg text-xs font-semibold transition ${this.state.adminFilter === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`;
+                document.getElementById('filterMissingBtn').className = `px-3 py-1.5 rounded-lg text-xs font-semibold transition ${this.state.adminFilter === 'missing' ? 'bg-rose-600 text-white' : 'bg-rose-50 text-rose-700 border border-rose-200'}`;
+                document.getElementById('filterVotedBtn').className = `px-3 py-1.5 rounded-lg text-xs font-semibold transition ${this.state.adminFilter === 'voted' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`;
+
+                // Seçenek Filtresi Dropdown
+                const optFilter = document.getElementById('adminOptionFilter');
+                optFilter.innerHTML = `<option value="ALL">Tüm Cevaplar</option>` + s.options.map(o => `<option value="${o}" ${this.state.adminOptionFilter === o ? 'selected' : ''}>${o}</option>`).join('');
+
+                this.renderAdminGrid();
+            },
+
+            renderAdminGrid() {
+                const s = this.state.surveys.find(x => x.id === this.state.adminSurveyId);
+                if (!s) return;
+
+                const votes = s.votes || {};
+                const q = this.state.adminSearch.trim().toLowerCase();
+
+                const filtered = this.state.personnel.filter(p => {
+                    const v = votes[p.apolet];
+                    if (this.state.adminFilter === 'missing' && v) return false;
+                    if (this.state.adminFilter === 'voted' && !v) return false;
+                    if (this.state.adminOptionFilter !== 'ALL' && v !== this.state.adminOptionFilter) return false;
+                    if (q && !p.apolet.toLowerCase().includes(q) && !p.name.toLowerCase().includes(q)) return false;
+                    return true;
+                });
+
+                const grid = document.getElementById('adminPersonnelGrid');
+                if (filtered.length === 0) {
+                    grid.innerHTML = `<div class="col-span-full py-8 text-center text-xs text-slate-400">Kayıt bulunamadı.</div>`;
+                    return;
+                }
+
+                grid.innerHTML = filtered.map(p => {
+                    const v = votes[p.apolet];
+                    if (!v) {
+                        // KIRMIZI KART (İŞARETLEMEYEN)
+                        return `
+                            <div onclick="app.openManualModal('${p.apolet}')" class="cursor-pointer rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-300 p-2.5 transition">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="font-mono font-bold text-xs px-1.5 py-0.5 rounded bg-rose-600 text-white">${p.apolet}</span>
+                                    <span class="font-semibold text-xs text-rose-950 truncate">${p.name}</span>
+                                </div>
+                                <div class="text-[11px] font-bold text-rose-600 mt-1">İşaretlemedi</div>
+                            </div>
+                        `;
+                    } else {
+                        // YEŞİL KART (İŞARETLEYEN)
+                        return `
+                            <div onclick="app.openManualModal('${p.apolet}')" class="cursor-pointer rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 p-2.5 transition">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="font-mono font-bold text-xs px-1.5 py-0.5 rounded bg-emerald-600 text-white">${p.apolet}</span>
+                                    <span class="font-semibold text-xs text-emerald-950 truncate">${p.name}</span>
+                                </div>
+                                <div class="text-[11px] font-bold text-emerald-700 mt-1 truncate">✓ ${v}</div>
+                            </div>
+                        `;
+                    }
+                }).join('');
+            },
+
+            // --- KIDEMLİ MANUEL İŞARETLEME ---
+            openManualModal(apolet) {
+                const s = this.state.surveys.find(x => x.id === this.state.adminSurveyId);
+                const p = this.state.personnel.find(x => x.apolet === apolet);
+                if (!s || !p) return;
+
+                this.state.manualTargetApolet = apolet;
+                const current = s.votes?.[apolet];
+
+                document.getElementById('manualModalPerson').textContent = `${p.apolet} - ${p.name}`;
+                document.getElementById('manualModalOptions').innerHTML = s.options.map(opt => `
+                    <button onclick="app.setManualVote('${opt.replace(/'/g, "\\'")}')" class="w-full py-2 px-3 rounded-lg text-left text-xs font-bold border transition ${
+                        current === opt ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'
+                    }">
+                        ${opt}
+                    </button>
+                `).join('') + (current ? `
+                    <button onclick="app.clearManualVote()" class="w-full py-2 px-3 rounded-lg text-center text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 mt-1">
+                        İşareti Kaldır (Sil)
+                    </button>
+                ` : '');
+
+                document.getElementById('manualModal').classList.remove('hidden');
+            },
+
+            closeManualModal() {
+                document.getElementById('manualModal').classList.add('hidden');
+            },
+
+            setManualVote(opt) {
+                const s = this.state.surveys.find(x => x.id === this.state.adminSurveyId);
+                if (!s) return;
+                if (!s.votes) s.votes = {};
+                s.votes[this.state.manualTargetApolet] = opt;
+                this.saveData();
+                this.closeManualModal();
+                this.renderAdminView();
+                this.toast('Güncellendi', 'success');
+            },
+
+            clearManualVote() {
+                const s = this.state.surveys.find(x => x.id === this.state.adminSurveyId);
+                if (!s || !s.votes) return;
+                delete s.votes[this.state.manualTargetApolet];
+                this.saveData();
+                this.closeManualModal();
+                this.renderAdminView();
+                this.toast('İşaret kaldırıldı', 'success');
+            },
+
+            toggleSelectedSurveyStatus() {
+                const s = this.state.surveys.find(x => x.id === this.state.adminSurveyId);
+                if (!s) return;
+                s.status = s.status === 'active' ? 'closed' : 'active';
+                this.saveData();
+                this.renderAdminView();
+                this.toast(s.status === 'active' ? 'Anket aktif edildi' : 'Anket kapatıldı', 'success');
+            },
+
+            deleteSelectedSurvey() {
+                this.state.surveys = this.state.surveys.filter(x => x.id !== this.state.adminSurveyId);
+                this.state.adminSurveyId = this.state.surveys[0]?.id || null;
+                this.saveData();
+                this.renderAll();
+                this.toast('Anket silindi', 'success');
+            },
+
+            // --- WHATSAPP LİNK & EKSİK LİSTESİ & EXCEL ---
+            copySurveyLink(surveyId) {
+                const id = surveyId || this.state.adminSurveyId;
+                const s = this.state.surveys.find(x => x.id === id);
+                if (!s) return;
+
+                const url = `${window.location.origin}${window.location.pathname}#survey=${s.id}`;
+                const text = `📢 *${s.title}*\n\nAşağıdaki linkten Apolet Numaranızı seçerek işaretleyin:\n${url}`;
+                this.copyToClipboard(text, 'Anket linki kopyalandı!');
+            },
+
+            copyMissingList() {
+                const s = this.state.surveys.find(x => x.id === this.state.adminSurveyId);
+                if (!s) return;
+
+                const votes = s.votes || {};
+                const missing = this.state.personnel.filter(p => !votes[p.apolet]);
+
+                if (missing.length === 0) {
+                    this.toast('Eksik personel yok!', 'success');
+                    return;
+                }
+
+                const listStr = missing.map(p => `${p.apolet} ${p.name}`).join('\n');
+                const url = `${window.location.origin}${window.location.pathname}#survey=${s.id}`;
+                const text = `⚠️ *${s.title} - İşaretlemeyenler (${missing.length} Kişi)*\n\n${listStr}\n\nLink: ${url}`;
+                this.copyToClipboard(text, `${missing.length} kişilik eksik listesi kopyalandı!`);
+            },
+
+            exportCSV() {
+                const s = this.state.surveys.find(x => x.id === this.state.adminSurveyId);
+                if (!s) return;
+
+                const votes = s.votes || {};
+                let csv = "\uFEFFApolet No;Ad Soyad;Durum;Cevap\n";
+                this.state.personnel.forEach(p => {
+                    const v = votes[p.apolet];
+                    csv += `${p.apolet};"${p.name}";${v ? 'İşaretledi' : 'İşaretlemedi'};"${v || '-'}"\n`;
+                });
+
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `${s.title.replace(/\s+/g, '_')}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            },
+
+            // --- AYARLAR VE 184 KİŞİLİK LİSTE YÖNETİMİ ---
+            openSettingsModal() {
+                document.getElementById('settingsPersonnelInput').value = this.state.personnel.map(p => `${p.apolet} ${p.name}`).join('\n');
+                document.getElementById('settingsPinInput').value = this.state.adminPin;
+                document.getElementById('settingsFirebaseInput').value = this.state.firebaseUrl;
+                document.getElementById('settingsModal').classList.remove('hidden');
+            },
+
+            closeSettingsModal() {
+                document.getElementById('settingsModal').classList.add('hidden');
+            },
+
+            resetDefaultPersonnel() {
+                const def = getDefault184Personnel();
+                document.getElementById('settingsPersonnelInput').value = def.map(p => `${p.apolet} ${p.name}`).join('\n');
+            },
+
+            saveSettings() {
+                const raw = document.getElementById('settingsPersonnelInput').value.trim();
+                const lines = raw.split(/\r?\n/);
+                const list = [];
+                const seen = new Set();
+
+                lines.forEach((line, i) => {
+                    const clean = line.trim();
+                    if (!clean) return;
+                    const match = clean.match(/^([0-9A-Za-z]+)[\s\-\t;:,]+(.+)$/);
+                    const apolet = match ? match[1].trim() : String(1001 + i);
+                    const name = match ? match[2].trim() : clean;
+                    if (!seen.has(apolet)) {
+                        seen.add(apolet);
+                        list.push({ apolet, name });
+                    }
+                });
+
+                if (list.length > 0) {
+                    this.state.personnel = list;
+                }
+
+                const newPin = document.getElementById('settingsPinInput').value.trim();
+                if (newPin) this.state.adminPin = newPin;
+
+                this.state.firebaseUrl = document.getElementById('settingsFirebaseInput').value.trim();
+
+                this.saveData();
+                this.closeSettingsModal();
+                this.renderAll();
+                this.toast('Ayarlar ve personel listesi kaydedildi!', 'success');
+            },
+
+            // --- YARDIMCI FONKSİYONLAR ---
+            copyToClipboard(text, msg) {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                try {
+                    document.execCommand('copy');
+                    this.toast(msg, 'success');
+                } catch (e) {
+                    this.toast('Kopyalanamadı', 'error');
+                }
+                document.body.removeChild(ta);
+            },
+
+            toast(msg, type = 'success') {
+                const box = document.getElementById('toastBox');
+                const el = document.createElement('div');
+                const bg = type === 'error' ? 'bg-rose-600' : 'bg-slate-900';
+                el.className = `${bg} text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-lg transition-all`;
+                el.textContent = msg;
+                box.appendChild(el);
+                setTimeout(() => el.remove(), 2600);
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', () => app.init());
+    </script>
+</body>
+</html>
+```
+ 
